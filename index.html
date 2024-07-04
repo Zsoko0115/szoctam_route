@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Távolság és Idő Kalkulátor</title>
+</head>
+<body>
+    <h1>Távolság és Idő Kalkulátor</h1>
+    <form id="distanceForm">
+        <label for="start">Kezdő cím:</label>
+        <input type="text" id="start" name="start" required>
+        <br><br>
+        <label for="end">Cél cím:</label>
+        <input type="text" id="end" name="end" required>
+        <br><br>
+        <label for="mode">Közlekedési eszköz:</label>
+        <select id="mode" name="mode" required>
+            <option value="driving-car">Autóval</option>
+            <option value="cycling-regular">Kerékpárral</option>
+            <option value="foot-walking">Gyalog</option>
+        </select>
+        <br><br>
+        <button type="submit">Kiszámol</button>
+    </form>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('distanceForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const start = document.getElementById('start').value;
+            const end = document.getElementById('end').value;
+            const mode = document.getElementById('mode').value;
+            const apiKey = '5b3ce3597851110001cf6248211aa74bc9b4478fa1fdfafeea2258b9';  // Cseréld ki a saját OpenRouteService API kulcsodra
+
+            const geocodeUrl = (address) => `https://api.openrouteservice.org/geocode/search?api_key=${apiKey}&text=${address}`;
+
+            Promise.all([
+                fetch(geocodeUrl(start)).then(response => response.json()),
+                fetch(geocodeUrl(end)).then(response => response.json())
+            ]).then(data => {
+                const startCoords = data[0].features[0].geometry.coordinates;
+                const endCoords = data[1].features[0].geometry.coordinates;
+
+                const routeUrl = `https://api.openrouteservice.org/v2/directions/${mode}?api_key=${apiKey}`;
+                const body = JSON.stringify({
+                    coordinates: [startCoords, endCoords]
+                });
+
+                return fetch(routeUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: body
+                });
+            }).then(response => response.json()).then(data => {
+                const distance = data.routes[0].summary.distance / 1000; // km-ben
+                const duration = data.routes[0].summary.duration / 60;  // percekben
+
+                document.getElementById('result').innerHTML = `
+                    <h2>Eredmény:</h2>
+                    <p>Távolság: ${distance.toFixed(2)} km</p>
+                    <p>Idő: ${duration.toFixed(2)} perc</p>
+                `;
+            }).catch(error => {
+                console.error('Hiba történt:', error);
+                document.getElementById('result').innerHTML = `
+                    <p>Hiba történt a számítás során. Kérlek, próbáld újra.</p>
+                `;
+            });
+        });
+    </script>
+</body>
+</html>
